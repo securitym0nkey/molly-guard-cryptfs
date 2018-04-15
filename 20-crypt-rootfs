@@ -1,0 +1,65 @@
+#!/usr/bin/python3
+import subprocess
+import json
+import os
+import re
+import sys
+
+class BlockDev:
+  devs = []
+  def __init__(self,di):
+      vars(self).update(di)
+      if hasattr(self,"children"):
+         for child in self.children:
+             child.parent = self
+      if hasattr(self,"name"):
+         BlockDev.add(self)
+
+  @staticmethod
+  def add(dev):
+      BlockDev.devs.append(dev)
+
+  @staticmethod
+  def getDevByMountpoint(mp):
+      for dev in BlockDev.devs:
+          if dev.mountpoint == mp:
+             return dev
+      return None
+
+  def __str__(self):
+      return self.name
+
+  def __repr__(self):
+      return self.name
+
+  def getAllAncestors(self):
+      if hasattr(self,"parent"):
+         return [self] + self.parent.getAllAncestors()
+      else:
+         return [self]
+
+#get all blockdevices via lsblk
+blks = json.loads(subprocess.check_output(["lsblk","-J","-p"]).decode("utf-8"), object_hook=BlockDev)
+
+#get the ttyname
+tty = os.ttyname(sys.stdout.fileno())
+
+if re.match("^/dev/tty[1-9]$",tty):
+    localtty = True
+else:
+    localtty = False
+
+#get the rootfs device
+rootdev = BlockDev.getDevByMountpoint("/")
+
+for dev in rootdev.getAllAncestors():
+    if dev.type == "crypt":
+        if not localtty:
+            print("The RootFS is on an encrypted device({}). You need to run '{}' from a local TTY.".format(dev.parent.name,os.environ["MOLLYGUARD_CMD"]))
+            sys.exit(1)
+
+        print("The RootFS is on an encrypted device({}). Do you know the passphrase?".format(dev.parent.name))
+        exitcode = os.system("cryptsetup luksOpen --test-passphrase {}".format(dev.parent.name))
+        if exitcode != 0:
+            sys.exit(2)
+
