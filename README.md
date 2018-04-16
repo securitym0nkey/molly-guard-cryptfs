@@ -1,8 +1,8 @@
 # molly-guard-cryptfs
 
-This is a plugin for molly-quard. It ensures that you are able to boot a system with an encrypted rootfs. 
+This is a plugin for molly-quard. It ensures that you are able to boot a system with an dm-crypt/luks encrypted rootfs. 
 
-With this plugin you have need to prove that
+With this plugin you need to prove that
   1. You have a working access to a local tty.
   2. You know the passphrase for the crypted device.
 
